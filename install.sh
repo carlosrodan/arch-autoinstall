@@ -18,7 +18,11 @@ EFI_SIZE_M=512
 USERNAME="carlos"
 HOSTNAME="archvm"
 PACSTRAP_PKGS=(base linux linux-firmware intel-ucode btrfs-progs \
-               networkmanager openssh grub efibootmgr dosfstools sudo)
+               networkmanager openssh grub efibootmgr grub-btrfs \
+               inotify-tools dosfstools vim \
+               pipewire pipewire-alsa pipewire-pulse pipewire-jack wireplumber \
+               zsh zsh-completions zsh-autosuggestions \
+               man sudo)
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
@@ -225,6 +229,11 @@ su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay.git && cd
 echog "Installing timeshift and basic desktop packages (will be expanded in post-install)..."
 pacman -S --noconfirm --needed timeshift flatpak firefox kitty nautilus
 
+# Grub configuration
+echog "Configuring Grub..."
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB  
+grub-mkconfig -o /boot/grub/grub.cfg
+
 # Note about Timeshift: timeshift-autosnap will be installed via yay in post-install
 echog "Phase 2 finished - exit chroot and reboot into new system, then run the post-install script as your normal user."
 EOF
@@ -245,8 +254,9 @@ cat <<INSTR
        - enable NetworkManager and sshd
        - install yay (as your user) and some base desktop packages
 
-  2) After the chroot script finishes:
+  2) After the chroot script finishes run:
        exit
+       swapoff -a
        umount -R /mnt
        reboot
 
