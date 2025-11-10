@@ -73,7 +73,7 @@ echo "Select a country for mirror selection:"
 select country in "${SORTED_COUNTRIES[@]}"; do
   if [[ -n "$country" ]]; then
     MIRROR_COUNTRY="$country"
-    echo "You selected: $MIRROR_COUNTRY"
+    echo "You selected: $MIRROR_COUNTRY\n"
     break
   else
     echo "Invalid selection. Please try again."
