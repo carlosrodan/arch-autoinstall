@@ -13,7 +13,6 @@ IFS=$'\n\t'
 # Edit variables below before running if you want to tweak them.
 USERNAME="carlos"
 HOSTNAME="arch"
-MIRROR_COUNTRY="France"
 BTRFS_MOUNT_OPTS_COMP="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
 BTRFS_MOUNT_OPTS_NOCOMP="compress=no,ssd,noatime,discard=async,space_cache=v2"
 EFI_SIZE_M=512
@@ -44,6 +43,42 @@ if ! ping -c1 archlinux.org >/dev/null 2>&1; then
   echow "No network detected. If you're using Wi-Fi, run 'iwctl' to connect."
   read -rp "Press ENTER once network is ready (or Ctrl+C to abort) "
 fi
+
+# Chose mirror country
+# Original unsorted list
+MIRROR_COUNTRIES=(
+  "France"
+  "Germany"
+  "United Kingdom"
+  "Netherlands"
+  "Spain"
+  "Italy"
+  "Belgium"
+  "Sweden"
+  "Poland"
+  "Switzerland"
+  "United States"
+  "Canada"
+  "Australia"
+  "Japan"
+  "South Korea"
+  "China"
+  "India"
+)
+
+# Sort the array alphabetically and store it back
+readarray -t SORTED_COUNTRIES < <(printf '%s\n' "${MIRROR_COUNTRIES[@]}" | sort)
+
+echo "Select a country for mirror selection:"
+select country in "${SORTED_COUNTRIES[@]}"; do
+  if [[ -n "$country" ]]; then
+    MIRROR_COUNTRY="$country"
+    echo "You selected: $MIRROR_COUNTRY"
+    break
+  else
+    echo "Invalid selection. Please try again."
+  fi
+done
 
 # Install reflector if not already present 
 if ! command -v reflector >/dev/null 2>&1; then
