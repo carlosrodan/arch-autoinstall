@@ -88,7 +88,7 @@ fi
 # Ensure reflector was successfully installed and get fastest mirrors
 if command -v reflector >/dev/null 2>&1; then
   echog "Selecting fast ${MIRROR_COUNTRY} mirrors..."
-  reflector --country "${MIRROR_COUNTRY}" --latest 10 --sort rate --save /etc/pacman.d/mirrorlist || echow "reflector failed; continuing with default mirrorlist"
+  reflector --country "${MIRROR_COUNTRY}" --latest 10 --sort rate --save /etc/pacman.d/mirrorlist --timeout 10 --retry 3 || echow "reflector failed; continuing with default mirrorlist"
 fi
 
 # Detect internal disks (exclude removable/usb)
