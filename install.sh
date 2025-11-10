@@ -2,21 +2,22 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# install.sh - Phase 1 (run from Arch ISO)
+# install.sh - Phase1 + Phase2 combined
 # - SAFE auto-detect (ignores USB)
 # - Creates GPT, EFI (512MiB) + Btrfs root
 # - Creates subvolumes: @, @home, @cache, @log, @tmp, @swap, timeshift-btrfs
 # - Mounts subvolumes with BTRFS_MOUNT_OPTS for data subvols, and compress=no for swap/log/cache
-# - pacstrap base system (kernel, intel-ucode, networkmanager, grub, etc.)
-#
-# Edit variables below before running if you want to tweak them.
+# - pacstrap uses -K (initialise fresh keyring) and install packages(kernel, intel-ucode, networkmanager, grub, etc.)
+# - chroot commands are written to /root/chroot.sh and executed via arch-chroot
 
+# Edit variables below before running if you want to tweak them.
+USERNAME="carlos"
+HOSTNAME="arch"
 MIRROR_COUNTRY="France"
 BTRFS_MOUNT_OPTS_COMP="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
 BTRFS_MOUNT_OPTS_NOCOMP="compress=no,ssd,noatime,discard=async,space_cache=v2"
 EFI_SIZE_M=512
-USERNAME="carlos"
-HOSTNAME="archvm"
+SWAPFILE_SIZE_MB=8192   # 8GB swapfile
 PACSTRAP_PKGS=(base linux linux-firmware intel-ucode btrfs-progs \
                networkmanager openssh grub efibootmgr grub-btrfs \
                inotify-tools dosfstools vim \
@@ -24,14 +25,17 @@ PACSTRAP_PKGS=(base linux linux-firmware intel-ucode btrfs-progs \
                zsh zsh-completions zsh-autosuggestions \
                man sudo)
 
+# Create custom printing functions (regular, warning and error)
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
 echof(){ printf "\nERROR: %s\n" "$*"; exit 1; }
 
+# Enusre the script is run as root
 if [[ $EUID -ne 0 ]]; then
   echof "Run this script as root (sudo ./install.sh)"
 fi
 
+# ==== Phase 1 starts =====
 echog "Phase 1: pre-install tasks"
 
 # Ensure network
@@ -41,21 +45,19 @@ if ! ping -c1 archlinux.org >/dev/null 2>&1; then
   read -rp "Press ENTER once network is ready (or Ctrl+C to abort) "
 fi
 
-# Try to get fast France mirrors
+# Install reflector if not already present 
+if ! command -v reflector >/dev/null 2>&1; then
+  echog "Installing reflector temporarily to pick fast France mirrors..."
+  pacman -Sy --noconfirm reflector >/dev/null 2>&1 || echow "Could not install reflector; will continue with existing mirrorlist"
+fi
+# Ensure reflector was successfully installed and get fastest mirrors
 if command -v reflector >/dev/null 2>&1; then
-  echog "Selecting best ${MIRROR_COUNTRY} mirrors using reflector..."
-  reflector --country "${MIRROR_COUNTRY}" --latest 10 --sort rate --save /etc/pacman.d/mirrorlist || echow "reflector failed; continuing with default mirrors"
-else
-  # install reflector temporarily
-  echog "Installing reflector to choose fast mirrors..."
-  pacman -Sy --noconfirm reflector >/dev/null 2>&1 || echow "Could not install reflector; continuing with existing mirrorlist"
-  if command -v reflector >/dev/null 2>&1; then
-    reflector --country "${MIRROR_COUNTRY}" --latest 10 --sort rate --save /etc/pacman.d/mirrorlist || echow "reflector failed; continuing"
-  fi
+  echog "Selecting fast ${MIRROR_COUNTRY} mirrors..."
+  reflector --country "${MIRROR_COUNTRY}" --latest 10 --sort rate --save /etc/pacman.d/mirrorlist || echow "reflector failed; continuing with default mirrorlist"
 fi
 
 # Detect internal disks (exclude removable/usb)
-echog "Detecting internal disks (non-USB)..."
+echog "Detecting internal disks (excludes USB)..."
 mapfile -t CANDIDS < <(lsblk -dno NAME,TRAN,RM,MODEL | awk '$3==0 && $2!="usb" {print "/dev/"$1" :: "$4}')
 if [[ ${#CANDIDS[@]} -eq 0 ]]; then
   echow "No internal disks found automatically. Showing all disks:"
@@ -126,7 +128,7 @@ umount /mnt
 # Mount subvolumes
 echog "Mounting subvolumes..."
 mount -o "subvol=@,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt
-mkdir -p /mnt/{home,var,var/cache,var/log,tmp,swap,efi}
+mkdir -p /mnt/{home,var/cache,var/log,tmp,swap,efi}
 mount -o "subvol=@home,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt/home
 mount -o "subvol=@cache,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/cache
 mount -o "subvol=@log,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/log
@@ -154,12 +156,12 @@ cat > /mnt/root/chroot.sh <<'EOF'
 set -euo pipefail
 IFS=$'\n\t'
 
-USERNAME="carlos"
-HOSTNAME="archvm"
+USERNAME="${USERNAME}"
+HOSTNAME="${HOSTNAME}"
 LOCALE="en_US.UTF-8"
 TIMEZONE="Europe/Paris"
 BTRFS_MOUNT_OPTS="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
-SWAPFILE_SIZE="8G"
+SWAPFILE_SIZE_MB=${SWAPFILE_SIZE_MB}
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
@@ -180,7 +182,7 @@ locale-gen
 echo "LANG=${LOCALE}" > /etc/locale.conf
 export LANG=${LOCALE}
 
-echog "Setting hostname..."
+echog "Setting hostname to ${HOSTNAME}..."
 echo "${HOSTNAME}" >/etc/hostname
 cat >> /etc/hosts <<HOSTS
 127.0.0.1	localhost
@@ -188,26 +190,32 @@ cat >> /etc/hosts <<HOSTS
 127.0.1.1	${HOSTNAME}.localdomain ${HOSTNAME}
 HOSTS
 
-echog "Setting root password (you will be prompted)..."
+echog "Set root password (interactive)..."
 passwd
 
-echog "Creating user ${USERNAME} and adding to wheel..."
-useradd -m -G wheel,audio,optical,video,input -s /bin/bash "${USERNAME}"
-echo "Set password for ${USERNAME}:"
-passwd "${USERNAME}"
-# enable sudo for wheel
+echog "Creating user ${USERNAME} (wheel) and setting shell to zsh..."
+pacman -S --noconfirm --needed zsh
+useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "\${USERNAME}"
+echo "Set password for \${USERNAME}:"
+passwd "\${USERNAME}"
+# enable wheel sudo
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers || true
 
 echog "Enabling NetworkManager and sshd..."
 systemctl enable NetworkManager
 systemctl enable sshd
 
+# Grub configuration
+echog "Install GRUB (UEFI) and generate config..."
+grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB  
+grub-mkconfig -o /boot/grub/grub.cfg
+
 # Create swapfile safely on Btrfs inside /swap (mounted from @swap)
 echog "Creating Btrfs-compatible swapfile of size ${SWAPFILE_SIZE} at /swap/swapfile..."
 mkdir -p /swap
 # ensure COW is disabled on /swap directory (chattr +C)
 chattr +C /swap || echow "chattr +C /swap failed (maybe not supported); continuing"
-# ensure compression disabled on this subvol (btrfs property)
+# ensure compression off for swap subvol
 btrfs property set /swap compression none || true
 
 # create swapfile
@@ -226,15 +234,9 @@ echog "Installing yay prerequisites and building yay as user ${USERNAME}..."
 pacman -S --noconfirm --needed git base-devel
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm" || echow "Building yay failed; build manually later."
 
-echog "Installing timeshift and basic desktop packages (will be expanded in post-install)..."
-pacman -S --noconfirm --needed timeshift flatpak firefox kitty nautilus
+echog "Installing timeshift ..."
+pacman -S --noconfirm --needed timeshift
 
-# Grub configuration
-echog "Configuring Grub..."
-grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB  
-grub-mkconfig -o /boot/grub/grub.cfg
-
-# Note about Timeshift: timeshift-autosnap will be installed via yay in post-install
 echog "Phase 2 finished - exit chroot and reboot into new system, then run the post-install script as your normal user."
 EOF
 
