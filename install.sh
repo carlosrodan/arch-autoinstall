@@ -157,7 +157,7 @@ btrfs subvolume create /mnt/@log
 btrfs subvolume create /mnt/@tmp
 btrfs subvolume create /mnt/@swap
 # timeshift area
-btrfs subvolume create /mnt/timeshift-btrfs || true
+btrfs subvolume create /mnt/timeshift-btrfs
 umount /mnt
 
 # Mount subvolumes
@@ -186,17 +186,19 @@ cat /mnt/etc/fstab
 
 # Create chroot script
 echog "Writing chroot script to /root/chroot.sh inside new system..."
-cat > /mnt/root/chroot.sh <<'EOF'
+cat > /mnt/root/chroot.sh <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$'\n\t'
 
 USERNAME="${USERNAME}"
 HOSTNAME="${HOSTNAME}"
+SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
+
 LOCALE="en_US.UTF-8"
 TIMEZONE="Europe/Paris"
 BTRFS_MOUNT_OPTS="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
-SWAPFILE_SIZE_MB=${SWAPFILE_SIZE_MB}
+
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
@@ -256,7 +258,7 @@ btrfs property set /swap compression none || true
 # create swapfile
 truncate -s 0 /swap/swapfile
 # allocate space (use dd to avoid fallocate on btrfs)
-dd if=/dev/zero of=/swap/swapfile bs=1M count=$(( ${SWAPFILE_SIZE%G} * 1024 )) status=progress || true
+dd if=/dev/zero of=/swap/swapfile bs=1M count=$SWAPFILE_SIZE_MB status=progress || true
 chmod 600 /swap/swapfile
 mkswap /swap/swapfile
 swapon /swap/swapfile
