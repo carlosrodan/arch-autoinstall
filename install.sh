@@ -73,12 +73,13 @@ echo "Select a country for mirror selection:"
 select country in "${SORTED_COUNTRIES[@]}"; do
   if [[ -n "$country" ]]; then
     MIRROR_COUNTRY="$country"
-    echo "You selected: $MIRROR_COUNTRY\n"
+    echo "You selected: $MIRROR_COUNTRY"
     break
   else
     echo "Invalid selection. Please try again."
   fi
 done
+echo
 
 # List of common timezones
 TIMEZONES=(
@@ -122,6 +123,7 @@ select tz in "${SORTED_TIMEZONES[@]}"; do
     echo "Invalid selection. Please try again."
   fi
 done
+echo
 
 # Install reflector if not already present 
 if ! command -v reflector >/dev/null 2>&1; then
