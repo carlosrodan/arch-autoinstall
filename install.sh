@@ -80,6 +80,49 @@ select country in "${SORTED_COUNTRIES[@]}"; do
   fi
 done
 
+# List of common timezones
+TIMEZONES=(
+  "Europe/Amsterdam"
+  "Europe/Berlin"
+  "Europe/Brussels"
+  "Europe/Helsinki"
+  "Europe/Lisbon"
+  "Europe/London"
+  "Europe/Madrid"
+  "Europe/Oslo"
+  "Europe/Paris"
+  "Europe/Prague"
+  "Europe/Rome"
+  "Europe/Stockholm"
+  "Europe/Vienna"
+  "Europe/Warsaw"
+  "America/New_York"
+  "America/Los_Angeles"
+  "America/Chicago"
+  "America/Sao_Paulo"
+  "Asia/Shanghai"
+  "Asia/Tokyo"
+  "Asia/Seoul"
+  "Asia/Kolkata"
+  "Australia/Sydney"
+  "Africa/Johannesburg"
+  "UTC"
+)
+
+# Sort the timezones alphabetically
+readarray -t SORTED_TIMEZONES < <(printf '%s\n' "${TIMEZONES[@]}" | sort)
+
+echo "Select your timezone:"
+select tz in "${SORTED_TIMEZONES[@]}"; do
+  if [[ -n "$tz" ]]; then
+    TIMEZONE="$tz"
+    echo "You selected: $TIMEZONE"
+    break
+  else
+    echo "Invalid selection. Please try again."
+  fi
+done
+
 # Install reflector if not already present 
 if ! command -v reflector >/dev/null 2>&1; then
   echog "Installing reflector temporarily to pick fast France mirrors..."
@@ -196,7 +239,6 @@ HOSTNAME="${HOSTNAME}"
 SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
 
 LOCALE="en_US.UTF-8"
-TIMEZONE="Europe/Paris"
 BTRFS_MOUNT_OPTS="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
 
 
