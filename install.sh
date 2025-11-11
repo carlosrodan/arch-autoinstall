@@ -21,7 +21,6 @@ choose_from_menu() {
     # Print prompt above the menu
     echo
     echo "$prompt"
-    echo "======================="
     echo
 
     # PS3 prompt: just a space so the input line appears after a blank line
