@@ -12,149 +12,33 @@ IFS=$'\n\t'
 
 # ===============================
 # Multi-column menu with auto-width and ASCII box (prompt outside)
-function choose_from_menu() {
-    local -r prompt="$1" outvar="$2" options=("${@:3}")
+choose_from_menu() {
+    local prompt="$1"
+    local outvar="$2"
+    shift 2
+    local options=("$@")
 
-    local count=${#options[@]}
-    (( count == 0 )) && return 1
+    # Print prompt above the menu
+    echo
+    echo "$prompt"
+    echo "======================="
+    echo
 
-    local max_rows=4
-    local cols=$(( (count + max_rows - 1) / max_rows ))
-    local cur=0
-    local esc=$'\e'
-    local first_render=true
+    # PS3 prompt: just a space so the input line appears after a blank line
+    PS3=$'\nEnter choice number: '
 
-    # compute longest option length (content width)
-    local content_max=0
-    for opt in "${options[@]}"; do
-        (( ${#opt} > content_max )) && content_max=${#opt}
+    local choice
+    select choice in "${options[@]}"; do
+        if [[ -n "$choice" ]]; then
+            printf -v "$outvar" "%s" "$choice"
+            break
+        else
+            echo "Invalid choice. Try again."
+        fi
     done
 
-    # visible width per column = content + 4
-    local field_width=$(( content_max + 4 ))
-
-    # actual number of printed rows
-    local rows=$(( count < max_rows ? count : max_rows ))
-
-    # how many lines we print each frame
-    local printed_lines=$(( rows + 2 ))
-
-    # print prompt above the box
-    printf "\n%s\n" "$prompt"
-
-    while true; do
-        # On subsequent renders, move cursor up
-        if ! $first_render; then
-            printf "\e[%dA" "$printed_lines"
-        else
-            first_render=false
-        fi
-
-        # Build the full inner width for borders
-        local inner_width=$(( cols * field_width ))
-
-        # Top border
-        printf "+"
-        for (( i=0; i<inner_width; i++ )); do printf "-"; done
-        printf "+\n"
-
-        # Render each row inside the box
-        for (( row=0; row<rows; row++ )); do
-            printf "|"
-            for (( col=0; col<cols; col++ )); do
-                idx=$(( col*max_rows + row ))
-                if (( idx < count )); then
-                    option="${options[idx]}"
-                    if (( idx == cur )); then
-                        printf " > "
-                        printf "${esc}[7m%-*s${esc}[27m" "$content_max" "$option"
-                        printf " "
-                    else
-                        printf "   %-*s " "$content_max" "$option"
-                    fi
-                else
-                    printf "%*s" "$field_width" ""
-                fi
-            done
-            printf "|\n"
-        done
-
-        # Bottom border
-        printf "+"
-        for (( i=0; i<inner_width; i++ )); do printf "-"; done
-        printf "+\n"
-
-        # Better key reading for Arch TTY environment
-        local key=""
-        local char=""
-        
-        # Read first character
-        IFS= read -rsn1 char
-        
-        # Check if it's an escape character
-        if [[ "$char" == "$esc" ]]; then
-            # Read the next character with timeout
-            if IFS= read -rsn1 -t 0.5 next_char; then
-                if [[ "$next_char" == "[" ]]; then
-                    # Read the direction character
-                    if IFS= read -rsn1 -t 0.5 dir_char; then
-                        case "$dir_char" in
-                            A) key="UP" ;;
-                            B) key="DOWN" ;;
-                            C) key="RIGHT" ;;
-                            D) key="LEFT" ;;
-                        esac
-                    fi
-                fi
-            fi
-        else
-            # Regular character
-            key="$char"
-        fi
-
-        # Handle navigation
-        case "$key" in
-            UP|k|K)
-                ((cur--))
-                ((cur < 0)) && cur=$((count - 1))
-                ;;
-            DOWN|j|J)
-                ((cur++))
-                ((cur >= count)) && cur=0
-                ;;
-            RIGHT|l|L)
-                ((cur += max_rows))
-                ((cur >= count)) && cur=$((cur % max_rows))
-                ;;
-            LEFT|h|H)
-                ((cur -= max_rows))
-                ((cur < 0)) && cur=$((cur + max_rows * cols))
-                ((cur >= count)) && cur=$((count - 1))
-                ;;
-            "")  # Enter or timeout
-                # Check if this was a timeout (no input)
-                if [[ -z "$char" ]]; then
-                    # Continue waiting for input
-                    continue
-                else
-                    break
-                fi
-                ;;
-            [1-9])
-                local num=$((key - 1))
-                if (( num < count )); then
-                    cur=$num
-                    break
-                fi
-                ;;
-            q|Q)
-                return 1
-                ;;
-        esac
-    done
-
-    printf -v "$outvar" "%s" "${options[$cur]}"
-    return 0
+    # Optional: blank line after menu ends
+    echo
 }
 
 # Edit variables below before running if you want to tweak them.
@@ -248,30 +132,35 @@ TIMEZONES=(
 
 choose_from_menu "Select timezone:" TIMEZONE "${TIMEZONES[@]}"
 echo "Selected timezone: $TIMEZONE"
+echo "============================================"
 
 # === Choose Keyboard layout ===
 KEYMAPS=("us intl. (default)" "us" "es" "fr" "de" "uk")
 
 choose_from_menu "Select keyboard layout:" KEYMAP "${KEYMAPS[@]}"
 echo "Selected keyboard layout: $KEYMAP"
+echo "============================================"
 
 # === Choose system display language ===
 LOCALES=("en_US.UTF-8 (default)" "es_ES.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8")
 
 choose_from_menu "Select language (LANG):" LOCALE "${LOCALES[@]}"
 echo "Selected language: $LOCALE"
+echo "============================================"
 
 # === Choose measurement units ===
 UNITS=("en_DK.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "es_ES.UTF-8")
 
 choose_from_menu "Select units locale (LC_MEASUREMENT):" UNIT "${UNITS[@]}"
 echo "Selected unit system: $UNIT"
+echo "============================================"
 
 # === Choose measurement units ===
 CALENDARS=("es_ES.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8" "en_US.UTF-8")
 
 choose_from_menu "Select calendar locale (LC_TIME):" CALENDAR "${CALENDARS[@]}"
 echo "Selected calendar: $CALENDAR"
+echo "============================================"
 
 # ====== END OF OPTIONS SELECTIONS ======
 
