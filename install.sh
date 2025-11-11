@@ -97,8 +97,8 @@ MIRROR_COUNTRIES=(
   "India"
 )
 
-choose_from_menu "Select mirror country:" selected_choice "${MIRROR_COUNTRIES[@]}"
-echo "Selected mirror: $selected_choice"
+choose_from_menu "Select mirror country:" MIRROR_COUNTRY "${MIRROR_COUNTRIES[@]}"
+echo "Selected mirror: $MIRROR_COUNTRY"
 
 # === Choose timezones ===
 TIMEZONES=(
