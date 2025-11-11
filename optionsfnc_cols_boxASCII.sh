@@ -142,3 +142,39 @@ selections=(
 
 choose_from_menu "Please make a choice:" selected_choice "${selections[@]}"
 echo "Selected choice: $selected_choice"
+
+
+# === Choose timezones ===
+TIMEZONES=(
+  "Europe/Madrid (default)"
+  "Europe/Paris"
+  "Europe/Amsterdam"
+  "Europe/Berlin"
+  "Europe/Brussels"
+  "Europe/Helsinki"
+  "Europe/Lisbon"
+  "Europe/London"
+  "Europe/Oslo"
+  "Europe/Prague"
+  "Europe/Rome"
+  "Europe/Stockholm"
+  "Europe/Vienna"
+  "Europe/Warsaw"
+  "America/New_York"
+  "America/Los_Angeles"
+  "America/Chicago"
+  "America/Sao_Paulo"
+  "Asia/Shanghai"
+  "Asia/Tokyo"
+  "Asia/Seoul"
+  "Asia/Kolkata"
+  "Australia/Sydney"
+  "Africa/Johannesburg"
+  "UTC"
+)
+
+choose_from_menu "Select timezone:" TIMEZONE "${TIMEZONES[@]}"
+echo "Selected timezone: $TIMEZONE"
+TIMEZONE=$(echo "$TIMEZONE" | sed 's/ (default)//')
+echo $TIMEZONE
+echo "============================================"

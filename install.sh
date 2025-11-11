@@ -14,39 +14,43 @@ IFS=$'\n\t'
 # Multi-column menu with auto-width and ASCII box (prompt outside)
 
 choose_from_menu() {
-    local prompt="$1"
-    local outvar="$2"
-    shift 2
-    local options=("$@")
+  local prompt="$1"
+  local outvar="$2"
+  shift 2
+  local options=("$@")
 
-    # Print prompt above the menu
-    echo
-    echo "$prompt"
-    echo
+  # Print prompt above the menu
+  echo
+  echo "$prompt"
+  echo
 
-    # PS3 prompt: line break before input
-    PS3=$'\nEnter choice number: '
+  # PS3 prompt: line break before input
+  local old_PS3="${PS3-}"  # Use default value if PS3 is unset
+  PS3=$'\nEnter choice number: '
 
-    local choice
-    while true; do
-        select choice in "${options[@]}"; do
-            # Valid selection
-            if [[ -n "$choice" ]]; then
-                printf -v "$outvar" "%s" "$choice"
-                break 2   # exit both select and while
-            # User pressed Enter only
-            elif [[ -z "$REPLY" ]]; then
-                echo "Please make a choice (cannot be empty)."
-                break     # re-loop
-            else
-                echo "Invalid choice. Try again."
-                break
-            fi
-        done
-    done
+  local choice
+  # Temporarily disable unset variable checking for the select loop
+  set +u
+  while true; do
+      select choice in "${options[@]}"; do
+          # Valid selection
+          if [[ -n "$choice" ]]; then
+              printf -v "$outvar" "%s" "$choice"
+              break 2   # exit both select and while
+          else
+              echo "Invalid choice. Try again."
+              echo
+              break
+          fi
+      done
+  done
+  set -u  # Re-enable unset variable checking
 
-    # Blank line after menu ends
-    echo
+  # Restore PS3
+  PS3="$old_PS3"
+  
+  # Blank line after menu ends
+  echo
 }
 
 # Edit variables below before running if you want to tweak them.
