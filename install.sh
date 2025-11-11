@@ -88,31 +88,45 @@ function choose_from_menu() {
         for (( i=0; i<inner_width; i++ )); do printf "-"; done
         printf "+\n"
 
-        # Read key (arrow keys send ESC [ A/B/C/D)
+        # Read key - better handling for TTY environment
         IFS= read -rsn1 key
-        if <<< "$key" grep -q '[a-zA-Z0-9]'; then
-            # Regular character, process immediately
-            :
-        elif [[ $key == "$esc" ]]; then
-            # read the rest of the sequence
-            read -rsn2 -t 0.0001 rest 2>/dev/null || rest=""
-            key+="$rest"
+        # If it's an escape character, read more
+        if [[ $key == $esc ]]; then
+            # Try to read more with a timeout
+            local additional
+            if IFS= read -rsn1 -t 0.1 additional; then
+                if [[ $additional == "[" ]]; then
+                    # Read the final character
+                    if IFS= read -rsn1 -t 0.1 final; then
+                        case $final in
+                            A) key="UP" ;;
+                            B) key="DOWN" ;;
+                            C) key="RIGHT" ;;
+                            D) key="LEFT" ;;
+                            *) key="" ;;
+                        esac
+                    fi
+                else
+                    key="$additional"
+                fi
+            fi
         fi
 
+        # Handle both escape sequences and direct character input
         case "$key" in
-            $esc'[A'|$'\x1b[A'|k|K)  # Up
+            UP|$esc'[A'|$'\x1b[A'|k|K)  # Up
                 ((cur--))
                 ((cur < 0)) && cur=$((count - 1))
                 ;;
-            $esc'[B'|$'\x1b[B'|j|J)  # Down
+            DOWN|$esc'[B'|$'\x1b[B'|j|J)  # Down
                 ((cur++))
                 ((cur >= count)) && cur=0
                 ;;
-            $esc'[C'|$'\x1b[C'|l|L)  # Right
+            RIGHT|$esc'[C'|$'\x1b[C'|l|L)  # Right
                 ((cur += max_rows))
                 ((cur >= count)) && cur=$((cur % max_rows))
                 ;;
-            $esc'[D'|$'\x1b[D'|h|H)  # Left
+            LEFT|$esc'[D'|$'\x1b[D'|h|H)  # Left
                 ((cur -= max_rows))
                 ((cur < 0)) && cur=$((cur + max_rows * cols))
                 ((cur >= count)) && cur=$((count - 1))
@@ -122,6 +136,13 @@ function choose_from_menu() {
                 ;;
             q|Q)  # Quit
                 return 1
+                ;;
+            [1-9])  # Number keys for quick selection
+                local num=$((key - 1))
+                if (( num < count )); then
+                    cur=$num
+                    break
+                fi
                 ;;
         esac
     done
