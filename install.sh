@@ -367,9 +367,9 @@ passwd
 
 echog "Creating user ${USERNAME} (wheel) and setting shell to zsh..."
 pacman -S --noconfirm --needed zsh
-useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "\${USERNAME}"
-echo "Set password for \${USERNAME}:"
-passwd "\${USERNAME}"
+useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "${USERNAME}"
+echo "Set password for ${USERNAME}:"
+passwd "${USERNAME}"
 # enable wheel sudo
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers || true
 
