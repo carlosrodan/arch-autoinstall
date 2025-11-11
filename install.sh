@@ -12,6 +12,7 @@ IFS=$'\n\t'
 
 # ===============================
 # Multi-column menu with auto-width and ASCII box (prompt outside)
+
 choose_from_menu() {
     local prompt="$1"
     local outvar="$2"
@@ -23,20 +24,28 @@ choose_from_menu() {
     echo "$prompt"
     echo
 
-    # PS3 prompt: just a space so the input line appears after a blank line
+    # PS3 prompt: line break before input
     PS3=$'\nEnter choice number: '
 
     local choice
-    select choice in "${options[@]}"; do
-        if [[ -n "$choice" ]]; then
-            printf -v "$outvar" "%s" "$choice"
-            break
-        else
-            echo "Invalid choice. Try again."
-        fi
+    while true; do
+        select choice in "${options[@]}"; do
+            # Valid selection
+            if [[ -n "$choice" ]]; then
+                printf -v "$outvar" "%s" "$choice"
+                break 2   # exit both select and while
+            # User pressed Enter only
+            elif [[ -z "$REPLY" ]]; then
+                echo "Please make a choice (cannot be empty)."
+                break     # re-loop
+            else
+                echo "Invalid choice. Try again."
+                break
+            fi
+        done
     done
 
-    # Optional: blank line after menu ends
+    # Blank line after menu ends
     echo
 }
 
