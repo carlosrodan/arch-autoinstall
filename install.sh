@@ -108,6 +108,8 @@ MIRROR_COUNTRIES=(
 
 choose_from_menu "Select mirror country:" MIRROR_COUNTRY "${MIRROR_COUNTRIES[@]}"
 echo "Selected mirror: $MIRROR_COUNTRY"
+# Extract actual value (remove "(default)" if present)
+MIRROR_COUNTRY=$(echo "$MIRROR_COUNTRY" | sed 's/ (default)//')
 
 # === Choose timezones ===
 TIMEZONES=(
@@ -140,6 +142,7 @@ TIMEZONES=(
 
 choose_from_menu "Select timezone:" TIMEZONE "${TIMEZONES[@]}"
 echo "Selected timezone: $TIMEZONE"
+TIMEZONE=$(echo "$TIMEZONE" | sed 's/ (default)//')
 echo "============================================"
 
 # === Choose Keyboard layout ===
@@ -147,6 +150,7 @@ KEYMAPS=("us intl. (default)" "us" "es" "fr" "de" "uk")
 
 choose_from_menu "Select keyboard layout:" KEYMAP "${KEYMAPS[@]}"
 echo "Selected keyboard layout: $KEYMAP"
+KEYMAP=$(echo "$KEYMAP" | awk '{print $1}')  # Extract first word
 echo "============================================"
 
 # === Choose system display language ===
@@ -154,6 +158,7 @@ LOCALES=("en_US.UTF-8 (default)" "es_ES.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8")
 
 choose_from_menu "Select language (LANG):" LOCALE "${LOCALES[@]}"
 echo "Selected language: $LOCALE"
+LOCALE=$(echo "$LOCALE" | sed 's/ (default)//')
 echo "============================================"
 
 # === Choose measurement units ===
@@ -161,6 +166,7 @@ UNITS=("en_DK.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "es_ES.UTF-8")
 
 choose_from_menu "Select units locale (LC_MEASUREMENT):" UNIT "${UNITS[@]}"
 echo "Selected unit system: $UNIT"
+UNIT=$(echo "$UNIT" | sed 's/ (default)//')
 echo "============================================"
 
 # === Choose measurement units ===
@@ -168,6 +174,7 @@ CALENDARS=("es_ES.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8" "en
 
 choose_from_menu "Select calendar locale (LC_TIME):" CALENDAR "${CALENDARS[@]}"
 echo "Selected calendar: $CALENDAR"
+CALENDAR=$(echo "$CALENDAR" | sed 's/ (default)//')
 echo "============================================"
 
 # ====== END OF OPTIONS SELECTIONS ======
