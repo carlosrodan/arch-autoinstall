@@ -10,6 +10,127 @@ IFS=$'\n\t'
 # - pacstrap uses -K (initialise fresh keyring) and install packages(kernel, intel-ucode, networkmanager, grub, etc.)
 # - chroot commands are written to /root/chroot.sh and executed via arch-chroot
 
+# ===============================
+# Multi-column menu with auto-width and ASCII box (prompt outside)
+function choose_from_menu() {
+    local -r prompt="$1" outvar="$2" options=("${@:3}")
+
+    local count=${#options[@]}
+    (( count == 0 )) && return 1
+
+    local max_rows=4
+    local cols=$(( (count + max_rows - 1) / max_rows ))
+    local cur=0
+    local esc=$'\e'
+    local first_render=true
+
+    # compute longest option length (content width)
+    local content_max=0
+    for opt in "${options[@]}"; do
+        (( ${#opt} > content_max )) && content_max=${#opt}
+    done
+
+    # visible width per column = content + 4 (leading space, marker, spacing, trailing space)
+    local field_width=$(( content_max + 4 ))
+
+    # actual number of printed rows (never more than max_rows)
+    local rows=$(( count < max_rows ? count : max_rows ))
+
+    # how many lines we print each frame: top border + rows + bottom border
+    local printed_lines=$(( rows + 2 ))
+
+    # print prompt above the box
+    printf "\n%s\n" "$prompt"
+
+    while true; do
+        # On subsequent renders, move cursor up exactly the number of printed lines
+        if ! $first_render; then
+            printf "\e[%dA" "$printed_lines"
+        else
+            first_render=false
+        fi
+
+        # Build the full inner width for borders
+        local inner_width=$(( cols * field_width ))
+
+        # Top border (ASCII)
+        printf "+"
+        for (( i=0; i<inner_width; i++ )); do printf "-"; done
+        printf "+\n"
+
+        # Render each row inside the box
+        for (( row=0; row<rows; row++ )); do
+            printf "|"
+            for (( col=0; col<cols; col++ )); do
+                idx=$(( col*max_rows + row ))
+                if (( idx < count )); then
+                    option="${options[idx]}"
+                    if (( idx == cur )); then
+                        # highlighted: exactly field_width visible chars
+                        # " > " = 3 chars, option padded to content_max, " " = 1 char
+                        printf " > "
+                        printf "${esc}[7m%-*s${esc}[27m" "$content_max" "$option"
+                        printf " "
+                    else
+                        # non-highlighted: exactly field_width visible chars
+                        printf "   %-*s " "$content_max" "$option"
+                    fi
+                else
+                    # empty: exactly field_width spaces
+                    printf "%*s" "$field_width" ""
+                fi
+            done
+            printf "|\n"
+        done
+
+        # Bottom border (ASCII)
+        printf "+"
+        for (( i=0; i<inner_width; i++ )); do printf "-"; done
+        printf "+\n"
+
+        # Read key (arrow keys send ESC [ A/B/C/D)
+        IFS= read -rsn1 key
+        if <<< "$key" grep -q '[a-zA-Z0-9]'; then
+            # Regular character, process immediately
+            :
+        elif [[ $key == "$esc" ]]; then
+            # read the rest of the sequence
+            read -rsn2 -t 0.0001 rest 2>/dev/null || rest=""
+            key+="$rest"
+        fi
+
+        case "$key" in
+            $esc'[A'|$'\x1b[A'|k|K)  # Up
+                ((cur--))
+                ((cur < 0)) && cur=$((count - 1))
+                ;;
+            $esc'[B'|$'\x1b[B'|j|J)  # Down
+                ((cur++))
+                ((cur >= count)) && cur=0
+                ;;
+            $esc'[C'|$'\x1b[C'|l|L)  # Right
+                ((cur += max_rows))
+                ((cur >= count)) && cur=$((cur % max_rows))
+                ;;
+            $esc'[D'|$'\x1b[D'|h|H)  # Left
+                ((cur -= max_rows))
+                ((cur < 0)) && cur=$((cur + max_rows * cols))
+                ((cur >= count)) && cur=$((count - 1))
+                ;;
+            "")  # Enter
+                break
+                ;;
+            q|Q)  # Quit
+                return 1
+                ;;
+        esac
+    done
+
+    printf -v "$outvar" "%s" "${options[$cur]}"
+    return 0
+}
+# ===============================
+
 # Edit variables below before running if you want to tweak them.
 USERNAME="carlos"
 HOSTNAME="arch"
@@ -44,14 +165,15 @@ if ! ping -c1 archlinux.org >/dev/null 2>&1; then
   read -rp "Press ENTER once network is ready (or Ctrl+C to abort) "
 fi
 
-# Chose mirror country
-# Original unsorted list
+# ====== OPTIONS SELECTIONS ======
+
+# === Choose mirror country ===
 MIRROR_COUNTRIES=(
+  "Spain (default)"
   "France"
   "Germany"
   "United Kingdom"
   "Netherlands"
-  "Spain"
   "Italy"
   "Belgium"
   "Sweden"
@@ -66,32 +188,20 @@ MIRROR_COUNTRIES=(
   "India"
 )
 
-# Sort the array alphabetically and store it back
-readarray -t SORTED_COUNTRIES < <(printf '%s\n' "${MIRROR_COUNTRIES[@]}" | sort)
+choose_from_menu "Select mirror country:" selected_choice "${MIRROR_COUNTRIES[@]}"
+echo "Selected mirror: $selected_choice"
 
-echo "Select a country for mirror selection:"
-select country in "${SORTED_COUNTRIES[@]}"; do
-  if [[ -n "$country" ]]; then
-    MIRROR_COUNTRY="$country"
-    echo "You selected: $MIRROR_COUNTRY"
-    break
-  else
-    echo "Invalid selection. Please try again."
-  fi
-done
-echo
-
-# List of common timezones
+# === Choose timezones ===
 TIMEZONES=(
+  "Europe/Madrid (default)"
+  "Europe/Paris"
   "Europe/Amsterdam"
   "Europe/Berlin"
   "Europe/Brussels"
   "Europe/Helsinki"
   "Europe/Lisbon"
   "Europe/London"
-  "Europe/Madrid"
   "Europe/Oslo"
-  "Europe/Paris"
   "Europe/Prague"
   "Europe/Rome"
   "Europe/Stockholm"
@@ -110,20 +220,34 @@ TIMEZONES=(
   "UTC"
 )
 
-# Sort the timezones alphabetically
-readarray -t SORTED_TIMEZONES < <(printf '%s\n' "${TIMEZONES[@]}" | sort)
+choose_from_menu "Select timezone:" TIMEZONE "${TIMEZONES[@]}"
+echo "Selected timezone: $TIMEZONE"
 
-echo "Select your timezone:"
-select tz in "${SORTED_TIMEZONES[@]}"; do
-  if [[ -n "$tz" ]]; then
-    TIMEZONE="$tz"
-    echo "You selected: $TIMEZONE"
-    break
-  else
-    echo "Invalid selection. Please try again."
-  fi
-done
-echo
+# === Choose Keyboard layout ===
+KEYMAPS=("us intl. (default)" "us" "es" "fr" "de" "uk")
+
+choose_from_menu "Select keyboard layout:" KEYMAP "${KEYMAPS[@]}"
+echo "Selected keyboard layout: $KEYMAP"
+
+# === Choose system display language ===
+LOCALES=("en_US.UTF-8 (default)" "es_ES.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8")
+
+choose_from_menu "Select language (LANG):" LOCALE "${LOCALES[@]}"
+echo "Selected language: $LOCALE"
+
+# === Choose measurement units ===
+UNITS=("en_DK.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "es_ES.UTF-8")
+
+choose_from_menu "Select units locale (LC_MEASUREMENT):" UNIT "${UNITS[@]}"
+echo "Selected unit system: $UNIT"
+
+# === Choose measurement units ===
+CALENDARS=("es_ES.UTF-8 (default)" "en_GB.UTF-8" "fr_FR.UTF-8" "de_DE.UTF-8" "en_US.UTF-8")
+
+choose_from_menu "Select calendar locale (LC_TIME):" CALENDAR "${CALENDARS[@]}"
+echo "Selected calendar: $CALENDAR"
+
+# ====== END OF OPTIONS SELECTIONS ======
 
 # Install reflector if not already present 
 if ! command -v reflector >/dev/null 2>&1; then
@@ -251,17 +375,65 @@ echof(){ printf "\nERROR: %s\n" "$*"; exit 1; }
 # Minimal check we are inside chroot
 if [[ ! -f /etc/fstab ]]; then echof "Please run this script inside arch-chroot /mnt"; fi
 
+# ===== Set Timezone, keyboard layout and locales =====
+# Set Timezone
 echog "Setting timezone to ${TIMEZONE}..."
-ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+ln -sf "/usr/share/zoneinfo/${TIMEZONE}" /etc/localtime
 hwclock --systohc
 
-echog "Generating locales..."
-if ! grep -q "^${LOCALE}" /etc/locale.gen; then
-  sed -i "s/^#${LOCALE}/${LOCALE}/" /etc/locale.gen || true
-fi
+# Set keyboard layout
+echo "Setting keyboard layout to $KEYMAP..."
+echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
+
+# Generate and set locales
+echo "Generating locales..."
+echog "Setting up locales..."
+
+# Function to add locale if not already present
+add_locale_if_missing() {
+    local locale="$1"
+    # Ensure locale has .UTF-8 suffix
+    local base="${locale%.UTF-8}"
+    local full_locale="${base}.UTF-8"
+
+    # If it exists commented out, uncomment it
+    if grep -q "^#\s*${full_locale} UTF-8" /etc/locale.gen; then
+        sed -i "s/^#\s*\(${full_locale} UTF-8\)/\1/" /etc/locale.gen
+        echo "Uncommented ${full_locale} in locale.gen"
+    # If it doesn't exist at all, append it
+    elif ! grep -q "^${full_locale} UTF-8" /etc/locale.gen; then
+        echo "${full_locale} UTF-8" >> /etc/locale.gen
+        echo "Added ${full_locale} to locale.gen"
+    else
+        echo "${full_locale} already exists in locale.gen"
+    fi
+}
+
+# Add only the locales we need
+add_locale_if_missing "$LOCALE"
+add_locale_if_missing "$UNIT" 
+add_locale_if_missing "$CALENDAR"
+
 locale-gen
-echo "LANG=${LOCALE}" > /etc/locale.conf
-export LANG=${LOCALE}
+
+{
+  echo "LANG=$LOCALE"
+  echo "LC_NUMERIC=$UNIT" 
+  echo "LC_MONETARY=$UNIT"
+  echo "LC_PAPER=$UNIT"
+  echo "LC_MEASUREMENT=$UNIT"
+  echo "LC_TIME=$CALENDAR"
+} > /etc/locale.conf
+
+# Also set the locale for the current session
+export LANG="$LOCALE"
+export LC_NUMERIC="$UNIT"
+export LC_MONETARY="$UNIT"
+export LC_PAPER="$UNIT"
+export LC_MEASUREMENT="$UNIT"
+export LC_TIME="$CALENDAR"
+
+#  ================================================
 
 echog "Setting hostname to ${HOSTNAME}..."
 echo "${HOSTNAME}" >/etc/hostname
