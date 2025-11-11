@@ -287,10 +287,6 @@ USERNAME="${USERNAME}"
 HOSTNAME="${HOSTNAME}"
 SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
 
-LOCALE="en_US.UTF-8"
-BTRFS_MOUNT_OPTS="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
-
-
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
 echof(){ printf "\nERROR: %s\n" "$*"; exit 1; }
@@ -387,12 +383,12 @@ grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
 grub-mkconfig -o /boot/grub/grub.cfg
 
 # Create swapfile safely on Btrfs inside /swap (mounted from @swap)
-echog "Creating Btrfs-compatible swapfile of size ${SWAPFILE_SIZE} at /swap/swapfile..."
+echog "Creating Btrfs-compatible swapfile of size ${SWAPFILE_SIZE_MB} at /swap/swapfile..."
 mkdir -p /swap
 # ensure COW is disabled on /swap directory (chattr +C)
 chattr +C /swap || echow "chattr +C /swap failed (maybe not supported); continuing"
 # ensure compression off for swap subvol
-btrfs property set /swap compression none || true
+btrfs property set /swap compression none
 
 # create swapfile
 truncate -s 0 /swap/swapfile
