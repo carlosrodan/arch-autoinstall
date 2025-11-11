@@ -30,20 +30,20 @@ function choose_from_menu() {
         (( ${#opt} > content_max )) && content_max=${#opt}
     done
 
-    # visible width per column = content + 4 (leading space, marker, spacing, trailing space)
+    # visible width per column = content + 4
     local field_width=$(( content_max + 4 ))
 
-    # actual number of printed rows (never more than max_rows)
+    # actual number of printed rows
     local rows=$(( count < max_rows ? count : max_rows ))
 
-    # how many lines we print each frame: top border + rows + bottom border
+    # how many lines we print each frame
     local printed_lines=$(( rows + 2 ))
 
     # print prompt above the box
     printf "\n%s\n" "$prompt"
 
     while true; do
-        # On subsequent renders, move cursor up exactly the number of printed lines
+        # On subsequent renders, move cursor up
         if ! $first_render; then
             printf "\e[%dA" "$printed_lines"
         else
@@ -53,7 +53,7 @@ function choose_from_menu() {
         # Build the full inner width for borders
         local inner_width=$(( cols * field_width ))
 
-        # Top border (ASCII)
+        # Top border
         printf "+"
         for (( i=0; i<inner_width; i++ )); do printf "-"; done
         printf "+\n"
@@ -66,83 +66,89 @@ function choose_from_menu() {
                 if (( idx < count )); then
                     option="${options[idx]}"
                     if (( idx == cur )); then
-                        # highlighted: exactly field_width visible chars
-                        # " > " = 3 chars, option padded to content_max, " " = 1 char
                         printf " > "
                         printf "${esc}[7m%-*s${esc}[27m" "$content_max" "$option"
                         printf " "
                     else
-                        # non-highlighted: exactly field_width visible chars
                         printf "   %-*s " "$content_max" "$option"
                     fi
                 else
-                    # empty: exactly field_width spaces
                     printf "%*s" "$field_width" ""
                 fi
             done
             printf "|\n"
         done
 
-        # Bottom border (ASCII)
+        # Bottom border
         printf "+"
         for (( i=0; i<inner_width; i++ )); do printf "-"; done
         printf "+\n"
 
-        # Read key - better handling for TTY environment
-        IFS= read -rsn1 key
-        # If it's an escape character, read more
-        if [[ $key == $esc ]]; then
-            # Try to read more with a timeout
-            local additional
-            if IFS= read -rsn1 -t 0.1 additional; then
-                if [[ $additional == "[" ]]; then
-                    # Read the final character
-                    if IFS= read -rsn1 -t 0.1 final; then
-                        case $final in
+        # Better key reading for Arch TTY environment
+        local key=""
+        local char=""
+        
+        # Read first character
+        IFS= read -rsn1 char
+        
+        # Check if it's an escape character
+        if [[ "$char" == "$esc" ]]; then
+            # Read the next character with timeout
+            if IFS= read -rsn1 -t 0.5 next_char; then
+                if [[ "$next_char" == "[" ]]; then
+                    # Read the direction character
+                    if IFS= read -rsn1 -t 0.5 dir_char; then
+                        case "$dir_char" in
                             A) key="UP" ;;
                             B) key="DOWN" ;;
                             C) key="RIGHT" ;;
                             D) key="LEFT" ;;
-                            *) key="" ;;
                         esac
                     fi
-                else
-                    key="$additional"
                 fi
             fi
+        else
+            # Regular character
+            key="$char"
         fi
 
-        # Handle both escape sequences and direct character input
+        # Handle navigation
         case "$key" in
-            UP|$esc'[A'|$'\x1b[A'|k|K)  # Up
+            UP|k|K)
                 ((cur--))
                 ((cur < 0)) && cur=$((count - 1))
                 ;;
-            DOWN|$esc'[B'|$'\x1b[B'|j|J)  # Down
+            DOWN|j|J)
                 ((cur++))
                 ((cur >= count)) && cur=0
                 ;;
-            RIGHT|$esc'[C'|$'\x1b[C'|l|L)  # Right
+            RIGHT|l|L)
                 ((cur += max_rows))
                 ((cur >= count)) && cur=$((cur % max_rows))
                 ;;
-            LEFT|$esc'[D'|$'\x1b[D'|h|H)  # Left
+            LEFT|h|H)
                 ((cur -= max_rows))
                 ((cur < 0)) && cur=$((cur + max_rows * cols))
                 ((cur >= count)) && cur=$((count - 1))
                 ;;
-            "")  # Enter
-                break
+            "")  # Enter or timeout
+                # Check if this was a timeout (no input)
+                if [[ -z "$char" ]]; then
+                    # Continue waiting for input
+                    continue
+                else
+                    break
+                fi
                 ;;
-            q|Q)  # Quit
-                return 1
-                ;;
-            [1-9])  # Number keys for quick selection
+            [1-9])
                 local num=$((key - 1))
                 if (( num < count )); then
                     cur=$num
                     break
                 fi
+                ;;
+            q|Q)
+                return 1
                 ;;
         esac
     done
@@ -150,7 +156,6 @@ function choose_from_menu() {
     printf -v "$outvar" "%s" "${options[$cur]}"
     return 0
 }
-# ===============================
 
 # Edit variables below before running if you want to tweak them.
 USERNAME="carlos"
