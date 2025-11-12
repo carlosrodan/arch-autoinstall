@@ -268,6 +268,7 @@ mount -o "subvol=@home,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt/home
 mount -o "subvol=@cache,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/cache
 mount -o "subvol=@log,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/log
 mount -o "subvol=@tmp,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/tmp
+mount -o "subvol=@swap,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/swap
 
 # Mount EFI
 mount "$EFI_PART" /mnt/efi
@@ -381,7 +382,6 @@ mkdir -p /swap
 # ensure COW is disabled on /swap directory (chattr +C)
 chattr +C /swap || echow "chattr +C /swap failed (maybe not supported); continuing"
 # ensure compression off for swap subvol
-btrfs property set /swap compression none
 
 # create swapfile
 truncate -s 0 /swap/swapfile
