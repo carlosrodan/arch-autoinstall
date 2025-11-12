@@ -286,7 +286,7 @@ cat /mnt/etc/fstab
 echog "Writing chroot script to /root/chroot.sh inside new system..."
 cat > /mnt/root/chroot.sh <<EOF
 #!/usr/bin/env bash
-set -eo pipefail
+set -euo pipefail
 IFS=$'\n\t'
 
 USERNAME="${USERNAME}"
