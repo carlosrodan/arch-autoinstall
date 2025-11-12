@@ -43,8 +43,6 @@ choose_from_menu() {
 }
 
 # Edit variables below before running if you want to tweak them.
-USERNAME="carlos"
-HOSTNAME="arch"
 BTRFS_MOUNT_OPTS_COMP="compress=zstd,ssd,noatime,discard=async,space_cache=v2"
 BTRFS_MOUNT_OPTS_NOCOMP="compress=no,ssd,noatime,discard=async,space_cache=v2"
 EFI_SIZE_M=512
@@ -75,6 +73,16 @@ if ! ping -c1 archlinux.org >/dev/null 2>&1; then
   echow "No network detected. If you're using Wi-Fi, run 'iwctl' to connect."
   read -rp "Press ENTER once network is ready (or Ctrl+C to abort) "
 fi
+
+# ====== User name and host prompts ========
+echo
+read -rp "Type your desired username: " USERNAME
+echog "Username chosen: $USERNAME"
+echo
+# ====== User name prompt ========
+read -rp "Type your desired computer (host) name (ex.: arch): " HOSTNAME
+echog "Computer name chosen: $HOSTNAME"
+echo
 
 # ====== OPTIONS SELECTIONS ======
 
