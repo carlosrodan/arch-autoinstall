@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
 
 # ===============================
 # Multi-column menu with auto-width and ASCII box (prompt outside)
@@ -14,7 +16,7 @@ choose_from_menu() {
     echo
 
     # PS3 prompt: line break before input
-    local old_PS3="$PS3"
+    local old_PS3="${PS3-}"  # Use default value if PS3 is unset
     PS3=$'\nEnter choice number: '
 
     local choice
