@@ -141,7 +141,7 @@ echo "$TIMEZONE"
 echo "============================================"
 
 # === Choose Keyboard layout ===
-KEYMAPS=("us intl. (default)" "us" "es" "fr" "de" "uk")
+KEYMAPS=("us-intl (default)" "us" "es" "fr" "de" "uk")
 
 choose_from_menu "Select keyboard layout:" KEYMAP "${KEYMAPS[@]}"
 echo "Selected keyboard layout: $KEYMAP"
