@@ -297,6 +297,11 @@ IFS=$'\n\t'
 USERNAME="${USERNAME}"
 HOSTNAME="${HOSTNAME}"
 SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
+LOCALE="${LOCALE}"
+UNIT="${UNIT}"
+CALENDAR="${CALENDAR}"
+TIMEZONE="${TIMEZONE}"
+KEYMAP="${KEYMAP}"
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
