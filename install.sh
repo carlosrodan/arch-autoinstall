@@ -284,7 +284,7 @@ cat /mnt/etc/fstab
 echog "Writing chroot script to /root/chroot.sh inside new system..."
 cat > /mnt/root/chroot.sh <<EOF
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 IFS=$'\n\t'
 
 USERNAME="${USERNAME}"
@@ -456,7 +456,6 @@ cat <<INSTR
        reboot
 
   3) After first boot, log in as '${USERNAME}' and run the Phase 3 script (post-install.sh)
-     (I provide post-install.sh below — save and run it as your user).
 
 INSTR
 
