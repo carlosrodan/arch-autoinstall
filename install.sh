@@ -287,14 +287,23 @@ cat > /mnt/root/chroot.sh <<EOF
 set -euo pipefail
 IFS=$'\n\t'
 
-USERNAME="${USERNAME}"
-HOSTNAME="${HOSTNAME}"
-SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
-LOCALE="${LOCALE}"
-UNIT="${UNIT}"
-CALENDAR="${CALENDAR}"
-TIMEZONE="${TIMEZONE}"
-KEYMAP="${KEYMAP}"
+# USERNAME="${USERNAME}"
+# HOSTNAME="${HOSTNAME}"
+# SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
+# LOCALE="${LOCALE}"
+# UNIT="${UNIT}"
+# CALENDAR="${CALENDAR}"
+# TIMEZONE="${TIMEZONE}"
+# KEYMAP="${KEYMAP}"
+
+USERNAME=carlos
+HOSTNAME=arch
+SWAPFILE_SIZE_MB=8192
+LOCALE=en_US.UTF-8
+UNIT=en_DK.UTF-8
+CALENDAR=es_ES.UTF-8
+TIMEZONE="Europe/Paris"
+KEYMAP=us-intl
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
