@@ -319,14 +319,7 @@ echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 # Generate and set locales
 echog "Setting up locales..."
 
-for loc in "$LOCALE" "$UNIT" "$CALENDAR"; do
-  [[ -z "\$loc" ]] && continue  # skip empty vars
-  if ! grep -q "^\${loc} UTF-8" /etc/locale.gen; then
-    echo "\${loc} UTF-8" >> /etc/locale.gen
-    echo "Added \${loc} UTF-8 to locale.gen"
-  fi
-done
-
+echo -e "${LOCALE} UTF-8\n${UNIT} UTF-8\n${CALENDAR} UTF-8" >> /etc/locale.gen
 locale-gen
 
 {
@@ -360,7 +353,6 @@ echog "Set root password (interactive)..."
 passwd
 
 echog "Creating user ${USERNAME} (wheel) and setting shell to zsh..."
-pacman -S --noconfirm --needed zsh
 useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "${USERNAME}"
 echo "Set password for ${USERNAME}:"
 passwd "${USERNAME}"
@@ -397,6 +389,7 @@ systemctl enable fstrim.timer
 echog "Installing yay prerequisites and building yay as user ${USERNAME}..."
 pacman -S --noconfirm --needed git base-devel
 su - "${USERNAME}" -c "cd ~ && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si --noconfirm" || echow "Building yay failed; build manually later."
+rm -rf ~/yay #To clean up the AUR build directory
 
 echog "Installing timeshift ..."
 pacman -S --noconfirm --needed timeshift
