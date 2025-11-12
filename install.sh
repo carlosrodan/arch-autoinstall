@@ -378,7 +378,6 @@ grub-mkconfig -o /boot/grub/grub.cfg
 
 # Create swapfile safely on Btrfs inside /swap (mounted from @swap)
 echog "Creating Btrfs-compatible swapfile of size ${SWAPFILE_SIZE_MB} at /swap/swapfile..."
-mkdir -p /swap
 # ensure COW is disabled on /swap directory (chattr +C)
 chattr +C /swap || echow "chattr +C /swap failed (maybe not supported); continuing"
 # ensure compression off for swap subvol
