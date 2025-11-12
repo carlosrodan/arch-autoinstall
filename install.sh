@@ -298,9 +298,9 @@ CALENDAR="${CALENDAR}"
 TIMEZONE="${TIMEZONE}"
 KEYMAP="${KEYMAP}"
 
-echog(){ printf "\n==> %s\n" "$*"; }
-echow(){ printf "\nWARN: %s\n" "$*"; }
-echof(){ printf "\nERROR: %s\n" "$*"; exit 1; }
+echog(){ printf "\n==> %s\n" "\$*"; }
+echow(){ printf "\nWARN: %s\n" "\$*"; }
+echof(){ printf "\nERROR: %s\n" "\$*"; exit 1; }
 
 # Minimal check we are inside chroot
 if [[ ! -f /etc/fstab ]]; then echof "Please run this script inside arch-chroot /mnt"; fi
