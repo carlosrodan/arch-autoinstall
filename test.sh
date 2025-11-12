@@ -1,12 +1,7 @@
 #!/bin/bash
 
-echog(){ printf "\n==> %s\n\n" "$*"; }
+LOCALE=en_EN.UTF-8
+UNIT=en_DK.UTF-8
+CALENDAR=es_ES.UTF-8
 
-# ====== User name and host prompts ========
-echo
-read -rp "Type your desired username: " USERNAME
-echog "Username chosen: $USERNAME"
-
-# ====== User name prompt ========
-read -rp "Type your desired computer (host) name (ex.: arch): " HOSTNAME
-echog "Computer name chosen: $HOSTNAME"
+echo -e "${LOCALE} UTF-8\n${UNIT} UTF-8\n${CALENDAR} UTF-8"

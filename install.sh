@@ -319,7 +319,7 @@ echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 # Generate and set locales
 echog "Setting up locales..."
 
-echo -e "${LOCALE} UTF-8\n${UNIT} UTF-8\n${CALENDAR} UTF-8" >> /etc/locale.gen
+echo -e "${LOCALE}\n${UNIT}\n${CALENDAR}" >> /etc/locale.gen
 locale-gen
 
 {
