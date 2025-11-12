@@ -14,42 +14,31 @@ IFS=$'\n\t'
 # Multi-column menu with auto-width and ASCII box (prompt outside)
 
 choose_from_menu() {
-  local prompt="$1"
-  local outvar="$2"
+  (( $# >= 3 )) || { echo "Usage: choose_from_menu <prompt> <outvar> <options...>"; return 1; }
+
+  local prompt="$1" outvar="$2"
   shift 2
   local options=("$@")
 
-  # Print prompt above the menu
   echo
   echo "$prompt"
   echo
 
-  # PS3 prompt: line break before input
-  local old_PS3="${PS3-}"  # Use default value if PS3 is unset
+  local old_PS3="${PS3:-}"
   PS3=$'\nEnter choice number: '
 
   local choice
-  # Temporarily disable unset variable checking for the select loop
-  set +u
-  while true; do
-      select choice in "${options[@]}"; do
-          # Valid selection
-          if [[ -n "$choice" ]]; then
-              printf -v "$outvar" "%s" "$choice"
-              break 2   # exit both select and while
-          else
-              echo "Invalid choice. Try again."
-              echo
-              break
-          fi
-      done
+  select choice in "${options[@]}"; do
+      if [[ -n "$choice" ]]; then
+          printf -v "$outvar" "%s" "$choice"
+          break
+      else
+          echo "Invalid choice. Try again."
+          echo
+      fi
   done
-  set -u  # Re-enable unset variable checking
 
-  # Restore PS3
   PS3="$old_PS3"
-  
-  # Blank line after menu ends
   echo
 }
 
