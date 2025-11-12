@@ -287,23 +287,23 @@ cat > /mnt/root/chroot.sh <<EOF
 set -euo pipefail
 IFS=$'\n\t'
 
-# USERNAME="${USERNAME}"
-# HOSTNAME="${HOSTNAME}"
-# SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
-# LOCALE="${LOCALE}"
-# UNIT="${UNIT}"
-# CALENDAR="${CALENDAR}"
-# TIMEZONE="${TIMEZONE}"
-# KEYMAP="${KEYMAP}"
+USERNAME="${USERNAME}"
+HOSTNAME="${HOSTNAME}"
+SWAPFILE_SIZE_MB="${SWAPFILE_SIZE_MB}"
+LOCALE="${LOCALE}"
+UNIT="${UNIT}"
+CALENDAR="${CALENDAR}"
+TIMEZONE="${TIMEZONE}"
+KEYMAP="${KEYMAP}"
 
-USERNAME=carlos
-HOSTNAME=arch
-SWAPFILE_SIZE_MB=8192
-LOCALE=en_US.UTF-8
-UNIT=en_DK.UTF-8
-CALENDAR=es_ES.UTF-8
-TIMEZONE="Europe/Paris"
-KEYMAP=us-intl
+# USERNAME=carlos
+# HOSTNAME=arch
+# SWAPFILE_SIZE_MB=8192
+# LOCALE=en_US.UTF-8
+# UNIT=en_DK.UTF-8
+# CALENDAR=es_ES.UTF-8
+# TIMEZONE="Europe/Paris"
+# KEYMAP=us-intl
 
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
@@ -326,30 +326,33 @@ echo "KEYMAP=$KEYMAP" > /etc/vconsole.conf
 echo "Generating locales..."
 echog "Setting up locales..."
 
-# Function to add locale if not already present
-add_locale_if_missing() {
-    local locale="$1"
-    # Ensure locale has .UTF-8 suffix
-    local base="${locale%.UTF-8}"
-    local full_locale="${base}.UTF-8"
+# # Function to add locale if not already present
+# add_locale_if_missing() {
+#     local locale="$1"
+#     # Ensure locale has .UTF-8 suffix
+#     local base="${locale%.UTF-8}"
+#     local full_locale="${base}.UTF-8"
 
-    # If it exists commented out, uncomment it
-    if grep -q "^#\s*${full_locale} UTF-8" /etc/locale.gen; then
-        sed -i "s/^#\s*\(${full_locale} UTF-8\)/\1/" /etc/locale.gen
-        echo "Uncommented ${full_locale} in locale.gen"
-    # If it doesn't exist at all, append it
-    elif ! grep -q "^${full_locale} UTF-8" /etc/locale.gen; then
-        echo "${full_locale} UTF-8" >> /etc/locale.gen
-        echo "Added ${full_locale} to locale.gen"
-    else
-        echo "${full_locale} already exists in locale.gen"
-    fi
-}
+#     # If it exists commented out, uncomment it
+#     if grep -q "^#\s*${full_locale} UTF-8" /etc/locale.gen; then
+#         sed -i "s/^#\s*\(${full_locale} UTF-8\)/\1/" /etc/locale.gen
+#         echo "Uncommented ${full_locale} in locale.gen"
+#     # If it doesn't exist at all, append it
+#     elif ! grep -q "^${full_locale} UTF-8" /etc/locale.gen; then
+#         echo "${full_locale} UTF-8" >> /etc/locale.gen
+#         echo "Added ${full_locale} to locale.gen"
+#     else
+#         echo "${full_locale} already exists in locale.gen"
+#     fi
+# }
 
-# Add only the locales we need
-add_locale_if_missing "$LOCALE"
-add_locale_if_missing "$UNIT" 
-add_locale_if_missing "$CALENDAR"
+for loc in "$LOCALE" "$UNIT" "$CALENDAR"; do
+  [[ -z "$loc" ]] && continue  # skip empty vars
+  if ! grep -q "^${loc} UTF-8" /etc/locale.gen; then
+    echo "${loc} UTF-8" >> /etc/locale.gen
+    echo "Added ${loc} UTF-8 to locale.gen"
+  fi
+done
 
 locale-gen
 
