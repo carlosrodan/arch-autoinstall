@@ -90,31 +90,14 @@ bind = SUPER, RETURN, exec, kitty
 HYPR
 fi
 
-# Auto-login on tty1 using systemd override
-echog "Setting up auto-login on tty1 for user ${USERNAME}..."
-sudo mkdir -p /etc/systemd/system/getty@tty1.service.d
-sudo tee /etc/systemd/system/getty@tty1.service.d/override.conf > /dev/null <<'UNIT'
-[Service]
-ExecStart=
-ExecStart=-/usr/bin/agetty --autologin ${USERNAME} --noclear %I \$TERM
-Type=simple
-UNIT
+# Installing lightDM
+echog "Installing LightDM and GTK greeter..."
+sudo pacman -S --noconfirm --needed lightdm lightdm-gtk-greeter lightdm-gtk-greeter-settings
 
-sudo systemctl daemon-reload
-sudo systemctl restart getty@tty1.service || true
+echog "Enabling LightDM..."
+sudo systemctl enable --now lightdm.service || echow "LightDM failed to start."
 
-# Auto-start Hyperland on tty1 for the logged-in user
-echog "Creating ~/.profile entry to auto-start Hyperland on tty1..."
-PROFILEF="$HOME/.profile"
-if ! grep -q "exec dbus-run-session -- hyperland" "$PROFILEF" 2>/dev/null; then
-  cat >> "$PROFILEF" <<'PROFILE'
-
-# Auto-start Hyperland when logging in on tty1
-if [[ -t 1 ]] && [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-  exec dbus-run-session -- hyperland
-fi
-PROFILE
-fi
+echog "LightDM installed. Hyprland should now appear as a session option."
 
 # Enable maintenance timers (pacman cache cleanup, journal vacuum, orphan removal)
 echog "Enabling periodic maintenance timers..."
