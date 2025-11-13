@@ -415,6 +415,7 @@ cat <<INSTR
 
   2) After the chroot script finishes run:
        exit
+       swapoff -a
        umount -R /mnt
        reboot
 

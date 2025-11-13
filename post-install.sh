@@ -54,7 +54,7 @@ echog "Add Flathub remote for Flatpak."
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
 
 echog "Install AUR packages via yay (this runs as your user)."
-yay -S --noconfirm brave-bin vscodium-bin timeshift-autosnap || echow "Some AUR packages failed; you can re-run yay manually."
+yay -S --noconfirm --needed brave-bin vscodium-bin timeshift-autosnap || echow "Some AUR packages failed; you can re-run yay manually."
 
 # configure timeshift-autosnap retention
 echog "Configuring timeshift-autosnap retention to 3 snapshots..."
@@ -66,6 +66,7 @@ fi
 HOOK_FILE="/etc/pacman.d/hooks/timeshift-autosnap.hook"
 if [[ ! -f "$HOOK_FILE" ]]; then
   echog "Creating pacman pre-transaction hook to create a timeshift snapshot..."
+  sudo mkdir -p /etc/pacman.d/hooks
   sudo tee "$HOOK_FILE" > /dev/null <<'HOOK'
 [Trigger]
 Operation = Upgrade
