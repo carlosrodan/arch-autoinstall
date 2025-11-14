@@ -226,3 +226,5 @@ echog "Zsh + Oh My Zsh + Powerlevel10k installation complete."
 echog "Plugins enabled: git, zsh-autosuggestions, zsh-syntax-highlighting"
 echog "You may need to restart your terminal or log out/in to use Zsh as default shell."
 
+echog "System installation complete! Now it's your turn! :)"
+

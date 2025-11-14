@@ -394,15 +394,27 @@ rm -rf ~/yay #To clean up the AUR build directory
 echog "Installing timeshift ..."
 pacman -S --noconfirm --needed timeshift
 
-echog "Phase 2 finished - exit chroot and reboot into new system, then run the post-install script as your normal user."
+echog "Phase 2 finished!"
+
+cat <<INSTR
+
+  1) Now unmount /mnt and reboot
+       exit
+       swapoff -a
+       umount -R /mnt
+       reboot
+
+  2) After first boot, log in as '${USERNAME}' and run the Phase 3 script (post-install.sh)
+
+INSTR
 EOF
 
 chmod +x /mnt/root/chroot.sh
 
-echog "Phase 1 complete. Next steps:"
+echog "Phase 1 complete. Next step:"
 cat <<INSTR
 
-  1) Enter the new system chroot and run the chroot script:
+  To enter the new system chroot and runing the chroot script type:
 
      arch-chroot /mnt /root/chroot.sh
 
@@ -412,14 +424,6 @@ cat <<INSTR
        - create a Btrfs-safe swapfile inside /swap (on @swap)
        - enable NetworkManager and sshd
        - install yay (as your user) and some base desktop packages
-
-  2) After the chroot script finishes run:
-       exit
-       swapoff -a
-       umount -R /mnt
-       reboot
-
-  3) After first boot, log in as '${USERNAME}' and run the Phase 3 script (post-install.sh)
 
 INSTR
 
