@@ -2,72 +2,120 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-# post-install.sh
-# Run as your regular user (carlos). Uses sudo for root tasks.
-# - system update
-# - zram-generator (zram-size = ram) -> 100% of RAM
-# - keep swapfile, set swappiness
-# - install AUR packages (yay): timeshift-autosnap, brave, vscodium
-# - configure timeshift-autosnap retention = 3
-# - enable timeshift pacman hook for pre-updates if missing
-# - minimal Hyprland install + portal
-# - set up auto-login on tty1 and auto-start hyperland on tty1
-# - failsafe Hyprland keybind to open kitty
-# - add Flathub remote
-# - enable maintenance timers (cache/journal/orphans cleanup)
-
 USERNAME="$(whoami)"
 echog(){ printf "\n==> %s\n" "$*"; }
 echow(){ printf "\nWARN: %s\n" "$*"; }
 echof(){ printf "\nERROR: %s\n" "$*"; exit 1; }
 
-echog "Updating system."
+if [[ $EUID -eq 0 ]]; then
+    echof "Run this script as your NORMAL USER, not root."
+fi
+
+###############################################################
+# 1. SYSTEM UPDATE
+###############################################################
+echog "Updating system..."
 sudo pacman -Syu --noconfirm
 
-echog "Installing zram-generator and related packages..."
+###############################################################
+# 2. ZRAM + SWAPFILE
+###############################################################
+echog "Installing zram-generator..."
 sudo pacman -S --noconfirm --needed zram-generator
 
-echog "Writing zram-generator config (100% RAM)..."
-sudo tee /etc/systemd/zram-generator.conf > /dev/null <<'EOF'
+echog "Writing zram generator config (100% of RAM)..."
+sudo tee /etc/systemd/zram-generator.conf >/dev/null <<'EOF'
 [zram0]
 zram-size = ram
 compression-algorithm = zstd
 EOF
 
-echog "Reloading systemd and enabling zram..."
 sudo systemctl daemon-reload
 sudo systemctl enable --now systemd-zram-setup@zram0.service || true
 
-echog "Keeping existing swapfile active; setting swappiness to 15..."
-sudo sed -i '/vm.swappiness/d' /etc/sysctl.d/99-swappiness.conf 2>/dev/null || true
-echo "vm.swappiness=15" | sudo tee /etc/sysctl.d/99-swappiness.conf > /dev/null
-sudo sysctl --system || true
+echog "Setting swappiness to 15..."
+sudo tee /etc/sysctl.d/99-swappiness.conf >/dev/null <<EOF
+vm.swappiness=15
+EOF
 
-echog "Install minimal Wayland/Hyprland packages and portal..."
-# names may vary slightly by repo; adjust if pacman fails
-sudo pacman -S --noconfirm --needed hyprland xdg-desktop-portal-hyprland wl-clipboard grim slurp xdg-desktop-portal
+###############################################################
+# 3. CORE APPLICATIONS
+###############################################################
+echog "Installing core applications..."
+sudo pacman -S --noconfirm --needed \
+    firefox flatpak kitty nautilus
 
-echog "Install other user apps."
-sudo pacman -S --noconfirm --needed flatpak firefox kitty nautilus
-
-echog "Add Flathub remote for Flatpak."
+echog "Adding Flathub..."
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || true
 
-echog "Install AUR packages via yay (this runs as your user)."
-yay -S --noconfirm --needed brave-bin vscodium-bin timeshift-autosnap || echow "Some AUR packages failed; you can re-run yay manually."
+###############################################################
+# 4. HYPRLAND + PORTALS
+###############################################################
+echog "Installing Hyprland and required Wayland utilities..."
+sudo pacman -S --noconfirm --needed \
+    hyprland \
+    xdg-desktop-portal-hyprland \
+    xdg-desktop-portal \
+    wl-clipboard grim slurp \
+    polkit-kde-agent
 
-# configure timeshift-autosnap retention
-echog "Configuring timeshift-autosnap retention to 3 snapshots..."
-if [[ -f /etc/timeshift-autosnap.conf ]]; then
-  sudo sed -i 's/^SNAPSHOT_LIMIT=.*/SNAPSHOT_LIMIT=3/' /etc/timeshift-autosnap.conf || true
+###############################################################
+# 5. DISPLAY MANAGER: LY
+###############################################################
+echog "Installing Ly display manager..."
+sudo pacman -S --noconfirm --needed ly
+sudo systemctl enable ly.service
+
+###############################################################
+# 6. AUTO-START HYPRLAND AFTER LOGIN (WITH LY)
+###############################################################
+echog "Configuring auto-start of Hyprland after login..."
+
+if ! grep -q "exec Hyprland" "$HOME/.zprofile" 2>/dev/null; then
+cat >> "$HOME/.zprofile" <<'EOF'
+
+# Auto-launch Hyprland when logging in from tty1 (Ly)
+if [[ -z "$WAYLAND_DISPLAY" ]] && [[ $(tty) == /dev/tty1 ]]; then
+    exec Hyprland
+fi
+EOF
 fi
 
-# create pacman hook for pre-update snapshot if timeshift-autosnap didn't create it
-HOOK_FILE="/etc/pacman.d/hooks/timeshift-autosnap.hook"
-if [[ ! -f "$HOOK_FILE" ]]; then
-  echog "Creating pacman pre-transaction hook to create a timeshift snapshot..."
-  sudo mkdir -p /etc/pacman.d/hooks
-  sudo tee "$HOOK_FILE" > /dev/null <<'HOOK'
+# Create Wayland session entry (helps Ly detect Hyprland)
+sudo mkdir -p /usr/share/wayland-sessions
+sudo tee /usr/share/wayland-sessions/hyprland.desktop >/dev/null <<EOF
+[Desktop Entry]
+Name=Hyprland
+Comment=Hyprland Wayland compositor
+Exec=Hyprland
+Type=Application
+EOF
+
+###############################################################
+# 7. YAY + AUR PACKAGES
+###############################################################
+echog "Installing AUR packages using yay..."
+
+yay -S --noconfirm --needed \
+    vscodium-bin \
+    brave-bin \
+    timeshift-autosnap \
+    zsh-autosuggestions \
+    zsh-syntax-highlighting \
+    || echow "Some AUR packages failed."
+
+###############################################################
+# 8. TIMESHiFT AUTOSNAP CONFIG
+###############################################################
+echog "Configuring timeshift-autosnap (limit = 3 snapshots)..."
+
+if [[ -f /etc/timeshift-autosnap.conf ]]; then
+    sudo sed -i 's/^SNAPSHOT_LIMIT=.*/SNAPSHOT_LIMIT=3/' /etc/timeshift-autosnap.conf
+fi
+
+# Ensure pacman hook exists
+sudo mkdir -p /etc/pacman.d/hooks
+sudo tee /etc/pacman.d/hooks/timeshift-autosnap.hook >/dev/null <<'HOOK'
 [Trigger]
 Operation = Upgrade
 Type = Package
@@ -78,153 +126,102 @@ Description = Creating Timeshift snapshot before upgrade...
 When = PreTransaction
 Exec = /usr/bin/timeshift --create --comments "pre-update" --tags D
 HOOK
-fi
 
-# Hyprland failsafe config: minimal keybind to open terminal (simple fallback to ensure Hyprland always has a minimal config)
-echog "Creating failsafe Hyprland config to open terminal (SUPER+ENTER)..."
-mkdir -p ~/.config/hypr
-if [[ ! -f ~/.config/hypr/hyprland.conf ]]; then
-  cat > ~/.config/hypr/hyprland.conf <<'HYPR'
-# Minimal failsafe config
-bind = SUPER, RETURN, exec, kitty
-HYPR
-fi
+###############################################################
+# 9. MAINTENANCE TIMERS (CACHE + JOURNAL + ORPHANS)
+###############################################################
+echog "Enabling system maintenance timers..."
 
-# Installing lightDM
-echog "Installing LightDM and GTK greeter..."
-sudo pacman -S --noconfirm --needed lightdm lightdm-gtk-greeter lightdm-gtk-greeter-settings
-
-echog "Enabling LightDM..."
-sudo systemctl enable --now lightdm.service || echow "LightDM failed to start."
-
-echog "LightDM installed. Hyprland should now appear as a session option."
-
-# Enable maintenance timers (pacman cache cleanup, journal vacuum, orphan removal)
-echog "Enabling periodic maintenance timers..."
-
-# pacman cache cleanup weekly (uses paccache)
-sudo tee /etc/systemd/system/paccache-clean.timer > /dev/null <<'TIMER'
+# Pacman cache cleanup
+sudo tee /etc/systemd/system/paccache-clean.service >/dev/null <<'EOF'
 [Unit]
-Description=Weekly pacman cache cleanup
-
-[Timer]
-OnCalendar=weekly
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-TIMER
-
-sudo tee /etc/systemd/system/paccache-clean.service > /dev/null <<'SRV'
-[Unit]
-Description=Run paccache to clean old package cache
-
+Description=Clean pacman cache
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/paccache -rk3
-SRV
+EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now paccache-clean.timer || true
-
-# journal vacuum - clean journals older than 14 days
-sudo tee /etc/systemd/system/journal-clean.timer > /dev/null <<'JTIMER'
+sudo tee /etc/systemd/system/paccache-clean.timer >/dev/null <<'EOF'
 [Unit]
-Description=Clean old journal logs
-
+Description=Weekly pacman cache cleanup
 [Timer]
 OnCalendar=weekly
 Persistent=true
-
 [Install]
 WantedBy=timers.target
-JTIMER
+EOF
 
-sudo tee /etc/systemd/system/journal-clean.service > /dev/null <<'JSRV'
+sudo systemctl enable --now paccache-clean.timer
+
+# Journal cleanup
+sudo tee /etc/systemd/system/journal-clean.service >/dev/null <<'EOF'
 [Unit]
-Description=Vacuum journal older than 14 days
+Description=Clean journal logs older than 14 days
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/journalctl --vacuum-time=14d
-JSRV
+EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now journal-clean.timer || true
-
-# orphaned package cleanup monthly
-sudo tee /etc/systemd/system/orphan-clean.timer > /dev/null <<'OTIMER'
+sudo tee /etc/systemd/system/journal-clean.timer >/dev/null <<'EOF'
 [Unit]
-Description=Monthly orphan package cleanup
-
+Description=Weekly journal cleanup
 [Timer]
-OnCalendar=monthly
+OnCalendar=weekly
 Persistent=true
-
 [Install]
 WantedBy=timers.target
-OTIMER
+EOF
 
-sudo tee /etc/systemd/system/orphan-clean.service > /dev/null <<'OSRV'
+sudo systemctl enable --now journal-clean.timer
+
+# Orphan cleanup
+sudo tee /etc/systemd/system/orphan-clean.service >/dev/null <<'EOF'
 [Unit]
-Description=Remove orphan packages
+Description=Remove orphaned packages
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/pacman -Rns --noconfirm $(pacman -Qtdq || true)
-OSRV
+EOF
 
-sudo systemctl daemon-reload
-sudo systemctl enable --now orphan-clean.timer || true
+sudo tee /etc/systemd/system/orphan-clean.timer >/dev/null <<'EOF'
+[Unit]
+Description=Monthly orphan cleanup
+[Timer]
+OnCalendar=monthly
+Persistent=true
+[Install]
+WantedBy=timers.target
+EOF
 
-echog "Post-install tasks complete. You should be auto-logged in on tty1 and Hyperland will start."
-echog "If you need to edit Hypr config, switch to another TTY (Ctrl+Alt+F2) and edit ~/.config/hypr/hyprland.conf"
+sudo systemctl enable --now orphan-clean.timer
 
-##############################
-# Install Zsh, Oh My Zsh, Powerlevel10k
-##############################
+###############################################################
+# 10. ZSH + OHMYZSH + POWERLEVEL10K
+###############################################################
+echog "Installing Zsh and customizing shell..."
 
-echog "Installing Zsh..."
-sudo pacman -S --noconfirm zsh
+sudo pacman -S --noconfirm --needed zsh
 
-echog "Setting Zsh as default shell for user $USERNAME..."
-chsh -s "$(which zsh)" "$USERNAME" || echow "Failed to change default shell. You may need to log out and back in."
+echog "Setting default shell to zsh..."
+chsh -s "$(command -v zsh)" "$USERNAME" || echow "Could not change shell"
 
-# Install Oh My Zsh if not already installed
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   echog "Installing Oh My Zsh..."
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended || echow "Oh My Zsh installation failed."
-else
-  echog "Oh My Zsh already installed."
+  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
 
-# Install Powerlevel10k theme
+# Powerlevel10k
 if [[ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]]; then
-  echog "Installing Powerlevel10k theme..."
   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
     "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k"
-else
-  echog "Powerlevel10k already installed."
 fi
 
-# Configure .zshrc to use Powerlevel10k
-ZSHRC_FILE="$HOME/.zshrc"
-if ! grep -q "ZSH_THEME=\"powerlevel10k/powerlevel10k\"" "$ZSHRC_FILE" 2>/dev/null; then
-  echog "Configuring .zshrc to use Powerlevel10k..."
-  sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$ZSHRC_FILE" || \
-    echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> "$ZSHRC_FILE"
+# Update .zshrc
+sed -i 's/^ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' "$HOME/.zshrc" || true
+
+# Recommended plugins
+if ! grep -q 'zsh-autosuggestions' "$HOME/.zshrc"; then
+  echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' >> "$HOME/.zshrc"
 fi
 
-# Enable recommended plugins
-if ! grep -q '^plugins=' "$ZSHRC_FILE"; then
-  echog "Adding recommended plugins to .zshrc..."
-  echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' >> "$ZSHRC_FILE"
-else
-  echog "Updating plugins in .zshrc..."
-  sed -i 's/^plugins=.*/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' "$ZSHRC_FILE"
-fi
-
-echog "Zsh + Oh My Zsh + Powerlevel10k installation complete."
-echog "Plugins enabled: git, zsh-autosuggestions, zsh-syntax-highlighting"
-echog "You may need to restart your terminal or log out/in to use Zsh as default shell."
-
-echog "System installation complete! Now it's your turn! :)"
-
+echog "Installation finished! Reboot and log in through Ly — Hyprland will start automatically."
