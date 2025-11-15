@@ -400,6 +400,39 @@ rm -rf ~/yay #To clean up the AUR build directory
 echog "Installing timeshift ..."
 pacman -S --noconfirm --needed timeshift
 
+# --- Configure Timeshift (correct UUID, valid JSON) ---
+echog "Configuring Timeshift with correct BTRFS settings..."
+
+TS_UUID=$(blkid -s UUID -o value "${ROOT_PART}")
+
+cat > /etc/timeshift/timeshift.json <<EOF2
+{
+  "backup_device_uuid" : "${TS_UUID}",
+  "parent_device_uuid" : "",
+  "do_first_run" : "false",
+  "btrfs_mode" : "true",
+  "include_btrfs_home" : "false",
+  "stop_cron_emails" : "true",
+
+  "count_monthly" : "2",
+  "count_weekly" : "3",
+  "count_daily" : "5",
+  "count_boot" : "5",
+
+  "snapshot_device" : "${ROOT_PART}",
+  "snapshot_size" : "4096",
+  "snapshot_path" : "/timeshift-btrfs",
+  "snapshot_type" : "BTRFS",
+  "snapshot_count" : "0",
+
+  "tags" : "D",
+  "exclude" : [],
+  "exclude-apps" : []
+}
+EOF2
+
+echog "Timeshift configuration written to /etc/timeshift/timeshift.json"
+
 echog "Phase 2 finished!"
 
 cat <<INSTR
