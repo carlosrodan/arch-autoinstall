@@ -353,7 +353,7 @@ echog "Set root password (interactive)..."
 passwd
 
 echog "Creating user ${USERNAME} (wheel) and setting shell to zsh..."
-useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "${USERNAME}"
+useradd -m -G wheel,audio,optical,video,input -s /usr/bin/zsh "${USERNAME}" || true
 echo "Set password for ${USERNAME}:"
 passwd "${USERNAME}"
 # enable wheel sudo
