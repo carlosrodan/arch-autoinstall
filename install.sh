@@ -260,15 +260,21 @@ btrfs subvolume create /mnt/@swap
 btrfs subvolume create /mnt/timeshift-btrfs
 umount /mnt
 
-# Mount subvolumes
+# Mount root partition
 echog "Mounting subvolumes..."
 mount -o "subvol=@,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt
-mkdir -p /mnt/{home,var/cache,var/log,tmp,swap,efi}
+# Create mountpoints
+mkdir -p /mnt/{home,var/cache,var/log,tmp,swap,efi,timeshift-btrfs}
+# Mount actual subvolumes
+mount -o "subvol=@,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt
 mount -o "subvol=@home,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt/home
 mount -o "subvol=@cache,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/cache
 mount -o "subvol=@log,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/var/log
 mount -o "subvol=@tmp,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/tmp
 mount -o "subvol=@swap,${BTRFS_MOUNT_OPTS_NOCOMP}" "$ROOT_PART" /mnt/swap
+
+# Mount Timeshift subvolume
+mount -o "subvol=timeshift-btrfs,${BTRFS_MOUNT_OPTS_COMP}" "$ROOT_PART" /mnt/timeshift-btrfs
 
 # Mount EFI
 mount "$EFI_PART" /mnt/efi
