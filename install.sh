@@ -289,6 +289,9 @@ genfstab -U /mnt >> /mnt/etc/fstab
 echog "fstab wrote:"
 cat /mnt/etc/fstab
 
+# Get ID of root partition (needed for timeshift set-up)
+TS_UUID=$(blkid -s UUID -o value "${ROOT_PART}")
+
 # Create chroot script
 echog "Writing chroot script to /root/chroot.sh inside new system..."
 cat > /mnt/root/chroot.sh <<EOF
@@ -304,6 +307,8 @@ UNIT="${UNIT}"
 CALENDAR="${CALENDAR}"
 TIMEZONE="${TIMEZONE}"
 KEYMAP="${KEYMAP}"
+ROOT_PART="${ROOT_PART}"
+TS_UUID="${TS_UUID}"
 
 echog(){ printf "\n==> %s\n" "\$*"; }
 echow(){ printf "\nWARN: %s\n" "\$*"; }
@@ -402,8 +407,6 @@ pacman -S --noconfirm --needed timeshift
 
 # --- Configure Timeshift (correct UUID, valid JSON) ---
 echog "Configuring Timeshift with correct BTRFS settings..."
-
-TS_UUID=$(blkid -s UUID -o value "${ROOT_PART}")
 
 cat > /etc/timeshift/timeshift.json <<EOF2
 {
